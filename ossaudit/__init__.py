@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
-__version__ = "0.5.0"
-__project__ = "ossaudit"
+__version__ = "1.0.0"
+__project__ = "ossaudit-ng"
 
 from typing import Dict, List, Optional
 

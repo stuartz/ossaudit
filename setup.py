@@ -7,12 +7,19 @@ import ossaudit
 setup(
     name=ossaudit.__project__,
     version=ossaudit.__version__,
-    author="Hans Jerry Illikainen",
-    author_email="hji@dyntopia.com",
+    author="Stuart Zurcher",
+    author_email="stuartz.ccrx@gmail.com",
+    maintainer="Stuart Zurcher",
+    maintainer_email="stuartz.ccrx@gmail.com",
     license="BSD-2-Clause",
-    description="Audit python packages for known vulnerabilities",
-    long_description="See https://github.com/dyntopia/ossaudit",
-    url="https://github.com/dyntopia/ossaudit",
+    description="Audit python packages for known vulnerabilities using Sonatype OSS Index v3 API",  # noqa
+    long_description=(
+        "Fork of ossaudit by Hans Jerry Illikainen "
+        "(https://github.com/illikainen/ossaudit). "
+        "Includes some portions of PRs from sseide. "
+        "See https://github.com/stuartz/ossaudit"
+    ),
+    url="https://github.com/stuartz/ossaudit",
     python_requires=">=3.5",
     entry_points={
         "console_scripts": ["ossaudit = ossaudit.__main__:main"],
@@ -47,10 +54,12 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Topic :: Security",
         "Topic :: Software Development",
         "Topic :: Software Development :: Libraries :: Python Modules",
