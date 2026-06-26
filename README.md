@@ -54,6 +54,14 @@ Options:
   --help               Show this message and exit.
 ```
 
+## As import
+```python
+from ossaudit import scan
+list_of_vulnerabilites = scan(installed=True)  # Pass options as args
+for v in list_of_vulnerabilites:
+  # v is type <class 'ossaudit.audit.Vulnerability'>
+  print(v.name, v.version, v.title, v.cvss_score)
+```
 
 ## Configuration
 
