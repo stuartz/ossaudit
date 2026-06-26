@@ -9,6 +9,9 @@ with open("ossaudit/__init__.py") as f:
 _version = re.search(r'^__version__ = "(.+)"', _src, re.M).group(1)
 _project = re.search(r'^__project__ = "(.+)"', _src, re.M).group(1)
 
+with open("README.md", encoding="utf-8") as f:
+    _long_description = f.read()
+
 setup(
     name=_project,
     version=_version,
@@ -18,12 +21,8 @@ setup(
     maintainer_email="stuartz.ccrx@gmail.com",
     license="BSD-2-Clause",
     description="Audit python packages for known vulnerabilities using Sonatype OSS Index v3 API",  # noqa
-    long_description=(
-        "Fork of ossaudit by Hans Jerry Illikainen "
-        "(https://github.com/illikainen/ossaudit). "
-        "Includes some portions of PRs from sseide. "
-        "See https://github.com/stuartz/ossaudit"
-    ),
+    long_description=_long_description,
+    long_description_content_type="text/markdown",
     url="https://github.com/stuartz/ossaudit",
     python_requires=">=3.5",
     entry_points={

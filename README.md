@@ -1,7 +1,12 @@
 
-# ossaudit
-A fork of https://github.com/illikainen/ossaudit.git
-This fork includes JSON output, config file support, Bearer token auth, and HTTP/HTTPS proxy support.
+# ossaudit-ng (Next Generation)
+A fork of https://github.com/illikainen/ossaudit.git which appears to be no longer maintained.
+
+This fork includes protions of PRs by sseide on the original ossaudit.git
+
+## New Features
+  - Added JSON output, config file support, Bearer token auth, HTTP/HTTPS proxy support, and ability to import.
+  - Works with the new API URL: "https://api.guide.sonatype.com/api/v3/"
 
 ## About
 
