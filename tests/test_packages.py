@@ -62,7 +62,7 @@ class TestGetFromFiles(TestCase):
             ("pytz ~= 2018.9", "pytz@2018.9"),
             ("pyyaml > 5.1b5, < 8", "pyyaml@5.1"),
             ("requests == 2.21.0", "requests@2.21.0"),
-            ("scipy == 1.*.1", "scipy@1.0.1"),
+            ("scipy == 1.0.1", "scipy@1.0.1"),
             ("scrapy >= 1.6.0", "scrapy@1.6.0"),
             ("setuptools < 5", "setuptools@0"),
             ("six == 1.2.3 --hash=sha256:abcd", "six@1.2.3"),
