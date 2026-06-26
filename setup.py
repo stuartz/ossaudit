@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 
+import re
 from setuptools import setup
 
-import ossaudit
+with open("ossaudit/__init__.py") as f:
+    _src = f.read()
+
+_version = re.search(r'^__version__ = "(.+)"', _src, re.M).group(1)
+_project = re.search(r'^__project__ = "(.+)"', _src, re.M).group(1)
 
 setup(
-    name=ossaudit.__project__,
-    version=ossaudit.__version__,
+    name=_project,
+    version=_version,
     author="Stuart Zurcher",
     author_email="stuartz.ccrx@gmail.com",
     maintainer="Stuart Zurcher",
