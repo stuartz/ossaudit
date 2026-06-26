@@ -41,7 +41,7 @@ Options:
                        times).
   --token TEXT         Token for authentication.
   --column TEXT        Column to show (can be specified multiple times or passed a comma separated list).
-                       [default: name, version, title]
+                       [default: name, version, title]  additional optons -- id, cve, cvss_score, description
   --ignore-id TEXT     Ignore a vulnerability by Sonatype ID or CVE (can be
                        specified multiple times).
   --ignore-cache       Temporarily ignore existing cache.
