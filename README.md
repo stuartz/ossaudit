@@ -40,7 +40,7 @@ Options:
   -f, --file FILENAME  Audit packages in file (can be specified multiple
                        times).
   --token TEXT         Token for authentication.
-  --column TEXT        Column to show (can be specified multiple times or passed comma separated list).
+  --column TEXT        Column to show (can be specified multiple times or passed a comma separated list).
                        [default: name, version, title]
   --ignore-id TEXT     Ignore a vulnerability by Sonatype ID or CVE (can be
                        specified multiple times).

@@ -8,7 +8,7 @@ import appdirs
 
 from . import __project__
 
-API = "https://ossindex.sonatype.org/api/v3/"
+API = "https://api.guide.sonatype.com/api/v3/"
 COMPONENT_REPORT = "component-report"
 MAX_PACKAGES = 128
 CONFIG = Path(appdirs.user_config_dir(__project__)).joinpath("config.ini")
