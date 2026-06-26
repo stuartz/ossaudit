@@ -1,7 +1,7 @@
-![Build Status](https://travis-ci.org/illikainen/ossaudit.svg?branch=master)
-![Cov](https://codecov.io/github/illikainen/ossaudit/coverage.svg?branch=master)
 
 # ossaudit
+A fork of https://github.com/illikainen/ossaudit.git
+This fork includes JSON output, config file support, Bearer token auth, and HTTP/HTTPS proxy support.
 
 ## About
 
@@ -22,21 +22,6 @@ files.  The following formats are supported with [dparse][2]:
 
 ### Normal
 
-```sh
-pip install ossaudit
-```
-
-### Development
-
-Clone this repository and:
-
-```sh
-make install-dev
-```
-
-This installs `ossaudit` with `pip`.  Note that each dependency in
-`requirements/*` is pinned with the hash for their respective source
-tarball.  If you don't care about that you could simply:
 
 ```sh
 ./setup.py develop
@@ -54,14 +39,18 @@ Options:
   -i, --installed      Audit installed packages.
   -f, --file FILENAME  Audit packages in file (can be specified multiple
                        times).
-  --username TEXT      Username for authentication.
   --token TEXT         Token for authentication.
-  --column TEXT        Column to show (can be specified multiple times).
+  --column TEXT        Column to show (can be specified multiple times or passed a comma separated list).
                        [default: name, version, title]
   --ignore-id TEXT     Ignore a vulnerability by Sonatype ID or CVE (can be
                        specified multiple times).
   --ignore-cache       Temporarily ignore existing cache.
   --reset-cache        Remove existing cache.
+  --json               Output vulnerabilities as json list
+  --json-full          Output all dependencies found and their vulnerabilities
+                       as json list (columns given are ignored)
+  --http-proxy TEXT    HTTP proxy URL.
+  --https-proxy TEXT   HTTPS proxy URL.
   --help               Show this message and exit.
 ```
 
@@ -82,24 +71,38 @@ Example configuration:
 
 ```ini
 [ossaudit]
-# Optional: OSS Index username.
-username = string
-
-# Optional: OSS Index token
-token = string
+# Optional: OSS Index API token (Bearer token auth).
+# A free account and token can be created at https://ossindex.sonatype.org/
+#token = string
 
 # Optional: comma-separated list of columns to show.
 # Default: name, version, title
 # Supported: id, name, version, cve, cvss_score, title, description
-columns = name, version, title
+#columns = name,version,title,cvss_score
 
-# Optional: comman-separated list of vulnerability IDs (Sonatype ID or CVE) to ignore.
-ignore-ids = x,y,z
+# Optional: comma-separated list of vulnerability IDs (Sonatype ID or CVE) to ignore.
+#ignore_ids = x,y,z
+
+# Optional: Ignore cache
+#ignore_cache = True
+
+# Optional: Reset the cache
+#reset_cache = True
+
+# Optional: Output format to json
+#json = True
+
+# Optional: Full output of OSS Index results to json
+#json_full = True
+
+# Optional: HTTP/HTTPS proxy (can also be set via HTTP_PROXY/HTTPS_PROXY env vars)
+#http_proxy = http://proxy.example.com:8080
+#https_proxy = http://proxy.example.com:8080
 ```
 
 Authentication is **not** required.  However, requests are rate limited
-and authenticated requests are less restricted.  A free account can be
-created on [OSS Index][1]
+and authenticated requests are less restricted.  A free account and API
+token can be created on [OSS Index][1].
 
 
 [1]: https://ossindex.sonatype.org/

@@ -8,7 +8,10 @@ from typing import IO, List
 
 import dparse
 import packaging.version
-import pkg_resources
+try:
+    import pkg_resources
+except ImportError:
+    from importlib import metadata as pkg_resources
 
 
 class Package:
@@ -138,9 +141,17 @@ def get_installed() -> List[Package]:
     """
     Retrieve installed packages.
     """
-    requirements = "\n".join(
-        str(p.as_requirement()) for p in iter(pkg_resources.working_set)
-    )
+    if hasattr(pkg_resources, "working_set"):
+        packages = (str(p.as_requirement()) for p in iter(pkg_resources.working_set))
+    else:
+        packages = (
+            "{name}=={version}".format(
+                name=d.metadata["Name"],
+                version=d.metadata["Version"]
+            )
+            for d in pkg_resources.distributions()
+        )
+    requirements = "\n".join(packages)
     f = io.StringIO(requirements)
     f.name = "requirements.txt"
     return get_from_files([f])

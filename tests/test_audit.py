@@ -26,9 +26,10 @@ class TestComponents(PatchedTestCase):
             with open(os.path.join("tests", "data", "vulns01.json")) as f:
                 mock.return_value.json.return_value = json.load(f)
 
-            vulns = audit.components([
+            all_coords = audit.components([
                 packages.Package(n, v) for n, v, _ in pkgs
             ])
+            vulns = audit.flatten_vuln_list(all_coords)
             self.assertEqual(len(vulns), 3)
 
             for name, version, cves in pkgs:
@@ -60,7 +61,12 @@ class TestComponents(PatchedTestCase):
             calls = []
             for i in range(0, len(pkgs), max_packages):
                 coords = [p.coordinate for p in pkgs[i:i + max_packages]]
-                kw = {"auth": None, "json": {"coordinates": coords}}
+                kw = {
+                    "headers": {},
+                    "json": {"coordinates": coords},
+                    "proxies": None,
+                    "timeout": 30,
+                }
                 calls.append((ANY, kw))
             self.assertEqual(mock.call_args_list, calls)
 
@@ -72,7 +78,8 @@ class TestComponents(PatchedTestCase):
             mock.return_value.status_code = 200
             pkgs = [{"vulnerabilities": [{}]}]  # type: list
             mock.return_value.json.return_value = pkgs
-            vulns = audit.components([packages.Package("a", "1")])
+            all_coords = audit.components([packages.Package("a", "1")])
+            vulns = audit.flatten_vuln_list(all_coords)
 
             self.assertEqual(len(vulns), 1)
             self.assertEqual(vulns[0].name, "unknown")
@@ -125,10 +132,10 @@ class TestComponents(PatchedTestCase):
 
                     calls = [(
                         ANY, {
-                            "auth": None,
-                            "json": {
-                                "coordinates": [p.coordinate]
-                            }
+                            "headers": {},
+                            "json": {"coordinates": [p.coordinate]},
+                            "proxies": None,
+                            "timeout": 30,
                         }
                     ) for p in pkgs if p.coordinate != "pkg:pypi/pyyaml@3.13"]
                     self.assertEqual(post.call_args_list, calls)
@@ -184,10 +191,10 @@ class TestComponents(PatchedTestCase):
 
                     calls = [(
                         ANY, {
-                            "auth": None,
-                            "json": {
-                                "coordinates": [p.coordinate]
-                            }
+                            "headers": {},
+                            "json": {"coordinates": [p.coordinate]},
+                            "proxies": None,
+                            "timeout": 30,
                         }
                     ) for p in pkgs]
                     self.assertEqual(post.call_args_list, calls)
@@ -220,20 +227,23 @@ class TestComponents(PatchedTestCase):
     def test_credentials(self) -> None:
         with patch("requests.post") as post:
             post.return_value.status_code = 200
-            audit.components([packages.Package("x", "1")], "usr", "token")
-            calls = [(ANY, {"auth": ("usr", "token"), "json": ANY})]
-            self.assertEqual(post.call_args_list, calls)
-
-    def test_missing_username(self) -> None:
-        with patch("requests.post") as post:
-            post.return_value.status_code = 200
-            audit.components([packages.Package("x", "1")], None, "token")
-            calls = [(ANY, {"auth": None, "json": ANY})]
+            audit.components([packages.Package("x", "1")], "token")
+            calls = [(ANY, {
+                "headers": {"Authorization": "Bearer token"},
+                "json": ANY,
+                "proxies": None,
+                "timeout": 30,
+            })]
             self.assertEqual(post.call_args_list, calls)
 
     def test_missing_token(self) -> None:
         with patch("requests.post") as post:
             post.return_value.status_code = 200
-            audit.components([packages.Package("x", "1")], "usr", None)
-            calls = [(ANY, {"auth": None, "json": ANY})]
+            audit.components([packages.Package("x", "1")], None)
+            calls = [(ANY, {
+                "headers": {},
+                "json": ANY,
+                "proxies": None,
+                "timeout": 30,
+            })]
             self.assertEqual(post.call_args_list, calls)

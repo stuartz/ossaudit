@@ -4,9 +4,10 @@
 
 import configparser
 import re
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Tuple
 
 import click
+from click.core import ParameterSource
 
 from . import __project__, const
 
@@ -14,9 +15,13 @@ from . import __project__, const
 class Option(click.Option):
     sep = re.compile(r"[\n\r,]")
 
-    def full_process_value(self, ctx: click.Context, value: Any) -> Any:
+    def consume_value(
+            self, ctx: click.Context, opts: Any
+    ) -> Tuple[Any, ParameterSource]:
         """
-        Process a value.
+        Consume a value, falling back to the config file when the value
+        comes from the default (i.e. was not supplied on the CLI or via
+        an environment variable).
 
         Resolution order:
 
@@ -26,13 +31,19 @@ class Option(click.Option):
         4. From configuration files.
         5. From the `default` keyword argument.
         """
-        if not value:
+        value, source = super().consume_value(ctx, opts)
+        if source in (ParameterSource.DEFAULT, ParameterSource.DEFAULT_MAP):
             name = self.name.replace("_", "-")
             config = ctx.obj and ctx.obj.get("config")
-            value = config and config.get(__project__, name, fallback=None)
-            if value and self.multiple:
-                value = tuple(v.strip() for v in self.sep.split(value) if v)
-        return super().full_process_value(ctx, value)
+            cfg_value = config and config.get(__project__, name, fallback=None)
+            if cfg_value is not None:
+                if self.multiple:
+                    value = tuple(
+                        v.strip() for v in self.sep.split(cfg_value) if v
+                    )
+                else:
+                    value = cfg_value
+        return value, source
 
 
 def add(*param_decls: str, **attrs: Any) -> Callable:

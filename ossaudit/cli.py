@@ -4,6 +4,7 @@
 
 import shutil
 import sys
+import json as JSON
 from typing import IO, List, Tuple
 
 import click
@@ -33,10 +34,6 @@ from . import audit, cache, option, packages
     help="Audit packages in file (can be specified multiple times).",
 )
 @option.add(
-    "--username",
-    help="Username for authentication.",
-)
-@option.add(
     "--token",
     help="Token for authentication.",
 )
@@ -59,51 +56,121 @@ from . import audit, cache, option, packages
 )
 @option.add(
     "--ignore-cache",
+    "ignore_cache",
     is_flag=True,
     help="Temporarily ignore existing cache.",
 )
 @option.add(
     "--reset-cache",
+    "reset_cache",
     is_flag=True,
     help="Remove existing cache.",
+)
+@option.add(
+    "--json",
+    is_flag=True,
+    help="Output vulnerabilities as json list",
+)
+@option.add(
+    "--json-full",
+    "json_full",
+    is_flag=True,
+    help="Output all dependencies found and their vulnerabilities as json list (columns given are ignored)",
+)
+@option.add(
+    "--http-proxy",
+    "http_proxy",
+    default=None,
+    help="HTTP proxy URL.",
+)
+@option.add(
+    "--https-proxy",
+    "https_proxy",
+    default=None,
+    help="HTTPS proxy URL.",
 )
 def cli(
         installed: bool,
         files: List[IO[str]],
-        username: str,
         token: str,
         columns: Tuple[str],
         ignore_ids: Tuple[str],
         ignore_cache: bool,
         reset_cache: bool,
+        json: bool,
+        json_full: bool,
+        http_proxy: str,
+        https_proxy: str
 ) -> None:
+    # get options from config file if available
+    ctx = click.get_current_context()
+    if ctx.obj.get("config"):
+        config = ctx.obj.get("config")
+        if config.has_section("ossaudit"):
+            if config.has_option("ossaudit", "token"):
+                token = config.get("ossaudit", "token")
+            if config.has_option("ossaudit", "ignore_ids"):
+                ignore_ids = config.get('ossaudit', 'ignore_ids').split(",")
+            if config.has_option("ossaudit", "columns"):
+                columns = config.get('ossaudit', 'columns').split(",")
+            if config.has_option("ossaudit", "ignore_cache"):
+                ignore_cache = config.getboolean('ossaudit', 'ignore_cache')
+            if config.has_option("ossaudit", "reset_cache"):
+                reset_cache = config.getboolean('ossaudit', 'reset_cache')
+            if config.has_option("ossaudit", "json"):
+                json = config.getboolean('ossaudit', 'json')
+            if config.has_option("ossaudit", "json_full"):
+                json_full = config.getboolean('ossaudit', 'json_full')
+            if config.has_option("ossaudit", "http_proxy"):
+                http_proxy = config.get('ossaudit', 'http_proxy')
+            if config.has_option("ossaudit", "https_proxy"):
+                https_proxy = config.get('ossaudit', 'https_proxy')
+
+    columns = tuple(c.strip() for col in columns for c in col.split(",") if c.strip())
+
     if reset_cache:
         cache.reset()
-
     pkgs = []  # type: list
     if installed:
         pkgs += packages.get_installed()
     if files:
         pkgs += packages.get_from_files(files)
+    proxies = {}
+    if http_proxy:
+        proxies["http"] = http_proxy
+    if https_proxy:
+        proxies["https"] = https_proxy
 
     try:
+        all_coordinates = audit.components(pkgs, token, proxies or None, ignore_cache)
+
+        # only write full coordinate report to stdout and exit afterwards
+        if json_full:
+            print(JSON.dumps(audit.create_report(all_coordinates), indent=4))#
+            plen = len(list(c for p, c in all_coordinates if "vulnerabilities" in c and len(c["vulnerabilities"]) > 0))
+            sys.exit(plen)
+
+        # flatten list with package coordinates and their vulnerabilities into a vulnerability list only
         vulns = [
-            v for v in audit.components(pkgs, username, token, ignore_cache)
+            v for v in audit.flatten_vuln_list(all_coordinates)
             if v.id not in ignore_ids and v.cve not in ignore_ids
         ]
     except audit.AuditError as e:
         raise click.ClickException(str(e))
 
     if vulns:
-        size = shutil.get_terminal_size()
-        table = texttable.Texttable(max_width=size.columns)
-        table.header(columns)
-        table.set_cols_dtype(["t" for _ in range(len(columns))])
-        table.add_rows([[getattr(v, c.lower(), "")
-                         for c in columns]
-                        for v in vulns], False)
-        click.echo(table.draw())
+        vlen, plen = len(vulns), len(pkgs)
+        if json:
+            print(JSON.dumps(audit.create_vuln_list(vulns, columns),indent=4))
+        else:
+            size = shutil.get_terminal_size()
+            table = texttable.Texttable(max_width=size.columns)
+            table.header(columns)
+            table.set_cols_dtype(["t" for _ in range(len(columns))])
+            table.add_rows([[getattr(v, c.lower(), "")
+                             for c in columns]
+                            for v in vulns], False)
+            click.echo(table.draw())
+            click.echo("Found {} vulnerabilities in {} packages".format(vlen, plen))
 
-    vlen, plen = len(vulns), len(pkgs)
-    click.echo("Found {} vulnerabilities in {} packages".format(vlen, plen))
-    sys.exit(vlen != 0)
+        sys.exit(vlen != 0)
