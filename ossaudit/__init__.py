@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __project__ = "ossaudit-ng"
 
 from typing import Dict, List, Optional
@@ -52,7 +52,7 @@ def scan(
     if installed:
         pkgs += _packages.get_installed()
     if files:
-        handles = [open(f) for f in files]
+        handles = [open(f, encoding="utf-8") for f in files]
         try:
             pkgs += _packages.get_from_files(handles)
         finally:
@@ -63,6 +63,9 @@ def scan(
     vulns = flatten_vuln_list(all_coordinates)
 
     if ignore_ids:
-        vulns = [v for v in vulns if v.id not in ignore_ids and v.cve not in ignore_ids]
+        vulns = [
+            v for v in vulns
+            if v.id not in ignore_ids and v.cve not in ignore_ids
+        ]
 
     return vulns
