@@ -3,15 +3,28 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import io
+import re
 import warnings
-from typing import IO, List
+from typing import IO, List, Optional
+from urllib.parse import urlparse
 
 import dparse
 import packaging.version
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import (
+    InvalidSdistFilename,
+    InvalidWheelFilename,
+    parse_sdist_filename,
+    parse_wheel_filename,
+)
+from packaging.version import InvalidVersion
 try:
     import pkg_resources
 except ImportError:
     from importlib import metadata as pkg_resources
+
+_VCS_SCHEMES = ("git", "hg", "bzr", "svn")
+_COMMIT_HASH_RE = re.compile(r"[0-9a-f]{7,40}", re.IGNORECASE)
 
 
 class Package:
@@ -81,6 +94,77 @@ class _Version(packaging.version.Version):  # type: ignore
         return self
 
 
+def _archive_url_version(url: str) -> Optional[_Version]:
+    """
+    Extract the version from a wheel or sdist filename in a direct
+    reference URL, e.g.:
+
+        pkg @ file:///path/to/pkg-1.2.3-py3-none-any.whl
+        pkg @ https://example.com/pkg-1.2.3.tar.gz
+    """
+    filename = urlparse(url).path.rsplit("/", 1)[-1]
+
+    if filename.endswith(".whl"):
+        try:
+            return _Version(str(parse_wheel_filename(filename)[1]))
+        except InvalidWheelFilename:
+            return None
+
+    if filename.endswith((".tar.gz", ".zip")):
+        try:
+            return _Version(str(parse_sdist_filename(filename)[1]))
+        except InvalidSdistFilename:
+            return None
+
+    return None
+
+
+def _vcs_ref_version(url: str) -> Optional[_Version]:
+    """
+    Best-effort extraction of a version from a VCS direct reference,
+    e.g. `pkg @ git+https://example.com/pkg.git@v1.2.3`.
+
+    The ref after `@` may be a tag, a branch, or a commit, and there's
+    no reliable way to tell them apart, so branches (`refs/heads/...`)
+    and refs that look like a commit hash are skipped rather than
+    risking a bogus version.
+    """
+    scheme, _, rest = url.partition("+")
+    if scheme not in _VCS_SCHEMES:
+        return None
+
+    path = urlparse(rest).path
+    if "@" not in path:
+        return None
+
+    ref = path.rsplit("@", 1)[-1]
+    if ref.startswith("refs/heads/"):
+        return None
+    if ref.startswith("refs/tags/"):
+        ref = ref[len("refs/tags/"):]
+    if _COMMIT_HASH_RE.fullmatch(ref):
+        return None
+
+    try:
+        return _Version(ref)
+    except InvalidVersion:
+        return None
+
+
+def _direct_reference_version(line: str) -> Optional[_Version]:
+    """
+    Recover a version for a PEP 508 direct-reference requirement
+    (`pkg @ <url>`), which carries no version specifier of its own.
+    """
+    try:
+        url = Requirement(line).url
+    except InvalidRequirement:
+        return None
+    if not url:
+        return None
+    return _archive_url_version(url) or _vcs_ref_version(url)
+
+
 def get_from_files(fhs: List[IO[str]]) -> List[Package]:
     """
     Read packages from a list of file handles.
@@ -130,6 +214,10 @@ def get_from_files(fhs: List[IO[str]]) -> List[Package]:
                     if spec.operator == ">":
                         version += 1
                     versions.append(version)
+            if not versions:
+                direct_version = _direct_reference_version(dep.line)
+                if direct_version is not None:
+                    versions.append(direct_version)
             version = min(versions or [_Version("0")])
             pkg = Package(dep.name, version.base_version)
             if pkg not in pkgs:

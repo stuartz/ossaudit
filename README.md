@@ -8,6 +8,8 @@ This fork includes protions of PRs by sseide on the original ossaudit.git
   - Added JSON output, config file support, Bearer token auth, HTTP/HTTPS proxy support, and ability to import.
   - Works with the new API URL: "https://api.guide.sonatype.com/api/v3/"
 
+See [HISTORY.md][4] for the full changelog.
+
 ## About
 
 `ossaudit` uses [Sonatype OSS Index][1] to audit Python packages for
@@ -121,3 +123,4 @@ token can be created on [OSS Index][1].
 [1]: https://ossindex.sonatype.org/
 [2]: https://github.com/pyupio/dparse
 [3]: https://github.com/ActiveState/appdirs
+[4]: https://github.com/stuartz/ossaudit/blob/master/HISTORY.md

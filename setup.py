@@ -24,6 +24,9 @@ setup(
     long_description=_long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/stuartz/ossaudit",
+    project_urls={
+        "Changelog": "https://github.com/stuartz/ossaudit/blob/master/HISTORY.md",
+    },
     python_requires=">=3.5",
     entry_points={
         "console_scripts": ["ossaudit = ossaudit.__main__:main"],
