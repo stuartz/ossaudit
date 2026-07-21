@@ -9,7 +9,17 @@ from typing import Any, Callable, Optional, Tuple
 import click
 from click.core import ParameterSource
 
-from . import __project__, const
+from . import const
+
+
+class OperationalError(click.ClickException):
+    """
+    An error that prevented the audit from running (bad config, API
+    failure, ...) as opposed to a successful audit that found
+    vulnerabilities.  Exits ``2`` so callers can tell the two apart:
+    ``0`` clean, ``1`` vulnerabilities found, ``2`` could not run.
+    """
+    exit_code = 2
 
 
 class Option(click.Option):
@@ -33,9 +43,15 @@ class Option(click.Option):
         """
         value, source = super().consume_value(ctx, opts)
         if source in (ParameterSource.DEFAULT, ParameterSource.DEFAULT_MAP):
-            name = self.name.replace("_", "-")
             config = ctx.obj and ctx.obj.get("config")
-            cfg_value = config and config.get(__project__, name, fallback=None)
+            cfg_value = None
+            if config:
+                # Accept the config key with either hyphens or
+                # underscores, e.g. both `ignore-ids` and `ignore_ids`.
+                for name in (self.name.replace("_", "-"), self.name):
+                    cfg_value = config.get(const.APP_NAME, name, fallback=None)
+                    if cfg_value is not None:
+                        break
             if cfg_value is not None:
                 if self.multiple:
                     value = tuple(
@@ -65,7 +81,7 @@ def add_config(*param_decls: str, **attrs: Any) -> Callable:
         try:
             ctx.obj["config"].read(value)
         except configparser.Error as e:
-            raise click.ClickException(str(e))
+            raise OperationalError(str(e))
 
     attrs["callback"] = cb
     attrs["expose_value"] = False

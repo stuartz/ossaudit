@@ -247,3 +247,26 @@ class TestComponents(PatchedTestCase):
                 "timeout": 30,
             })]
             self.assertEqual(post.call_args_list, calls)
+
+
+class TestCreateReport(PatchedTestCase):
+    def test_strips_time(self) -> None:
+        pkg = packages.Package("a", "1")
+        coord = {
+            "coordinates": "pkg:pypi/a@1",
+            "time": time.time(),
+            "vulnerabilities": [],
+        }
+        report = audit.create_report([(pkg, coord)])
+        self.assertEqual(report, [{
+            "coordinates": "pkg:pypi/a@1",
+            "vulnerabilities": [],
+        }])
+
+    def test_without_time(self) -> None:
+        # Entries from --ignore-cache never went through the cache, so
+        # they have no "time" key; create_report must not raise.
+        pkg = packages.Package("a", "1")
+        coord = {"coordinates": "pkg:pypi/a@1", "vulnerabilities": []}
+        report = audit.create_report([(pkg, coord)])
+        self.assertEqual(report, [coord])

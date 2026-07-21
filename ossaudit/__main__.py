@@ -2,11 +2,11 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
-from . import __project__, cli
+from . import cli, const
 
 
 def main() -> None:
-    prefix = __project__.upper()
+    prefix = const.APP_NAME.upper()
     cli.cli(auto_envvar_prefix=prefix)  # pylint: disable=E1120,E1123
 
 

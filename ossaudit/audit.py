@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from collections import namedtuple
-from typing import Dict, Generator, List, Optional
+from typing import Dict, Generator, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import requests
@@ -32,7 +32,7 @@ def components(
         token: Optional[str] = None,
         proxies: Optional[Dict[str, str]] = None,
         ignore_cache: bool = False,
-) -> List[Vulnerability]:
+) -> List[Tuple[packages.Package, Dict]]:
     old = list(_from_cache(pkgs, ignore_cache))
     new = list(_from_api([
         p for p in pkgs
@@ -116,7 +116,9 @@ def create_report(vulns: List):
     """
     out_list = []
     for p, c in vulns:
-        del c["time"]
+        # `time` is only present on entries that passed through the cache;
+        # with --ignore-cache it was never added, so drop it defensively.
+        c.pop("time", None)
         out_list.append(c)
     return out_list
 
@@ -137,6 +139,8 @@ def create_vuln_list(vulns: List, columns: List):
         v_dict = v._asdict()
         v_out = {}
         for c in columns:
-            v_out[c] = v_dict[c] if c in v_dict else ""
+            # Look up case-insensitively (as the table output does),
+            # while keeping the caller's spelling as the key.
+            v_out[c] = v_dict.get(c.lower(), "")
         out_list.append(v_out)
     return out_list

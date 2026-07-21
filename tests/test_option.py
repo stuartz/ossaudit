@@ -8,7 +8,7 @@ from unittest import TestCase
 import click
 from click.testing import CliRunner
 
-from ossaudit import __project__, option
+from ossaudit import const, option
 
 
 class TestOption(TestCase):
@@ -47,7 +47,8 @@ class TestOption(TestCase):
 
             result = runner.invoke(fun, ["--config", "x.ini"])
             self.assertEqual(result.exc_info[0], SystemExit)  # type: ignore
-            self.assertNotEqual(result.exit_code, 0)
+            # 2 == could not run (config parse failure).
+            self.assertEqual(result.exit_code, 2)
 
     def test_with_config(self) -> None:
         @click.command()
@@ -95,7 +96,7 @@ class TestOption(TestCase):
                     multi-integer = 11,   22,    33
                     f = a
                     multi-f = b, c
-                    """.format(__project__)
+                    """.format(const.APP_NAME)
                 )
             for name in ["a", "b", "c"]:
                 with open(name, "w") as f:
@@ -118,10 +119,38 @@ class TestOption(TestCase):
                     """
                     [{}]
                     asdf = abcd
-                    """.format(__project__)
+                    """.format(const.APP_NAME)
                 )
             result = runner.invoke(fun, ["--xyz", "x.ini"])
             self.assertEqual(result.exit_code, 0)
+
+    def test_with_config_key_separators(self) -> None:
+        # A multi-word option must be picked up from the config whether
+        # its key is written with hyphens or underscores.
+        for scalar_key, list_key in [
+            ("multi-word", "multi-word-list"),
+            ("multi_word", "multi_word_list"),
+        ]:
+            @click.command()
+            @option.add_config("--config")
+            @option.add("--multi-word")
+            @option.add("--multi-word-list", multiple=True)
+            def fun(**kwargs: Any) -> None:
+                self.assertEqual(kwargs["multi_word"], "value")
+                self.assertEqual(kwargs["multi_word_list"], ("a", "b"))
+
+            runner = CliRunner()
+            with runner.isolated_filesystem():
+                with open("x.ini", "w") as f:
+                    f.write(
+                        """
+                        [{}]
+                        {} = value
+                        {} = a, b
+                        """.format(const.APP_NAME, scalar_key, list_key)
+                    )
+                result = runner.invoke(fun, ["--config", "x.ini"])
+                self.assertEqual(result.exit_code, 0, msg=scalar_key)
 
     def test_with_config_and_overrides(self) -> None:
         @click.command()
@@ -146,7 +175,7 @@ class TestOption(TestCase):
                     from-cfg-and-cli = xyz
                     from-cfg-and-env = xyz
                     from-cfg-and-env-and-cli = xyz
-                    """.format(__project__)
+                    """.format(const.APP_NAME)
                 )
 
             args = [
