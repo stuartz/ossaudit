@@ -5,7 +5,7 @@
 import io
 import re
 import warnings
-from typing import IO, List, Optional
+from typing import IO, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import dparse
@@ -53,17 +53,25 @@ class Package:
 
 
 class _Version(packaging.version.Version):  # type: ignore
+    def _with_release(self, release: Tuple[int, ...]) -> "_Version":
+        """
+        Return a new version with *release* in place of this one's,
+        keeping the epoch.  Built from a version string so it depends
+        only on `packaging`'s public API.
+        """
+        prefix = "{}!".format(self.epoch) if self.epoch else ""
+        return _Version(prefix + ".".join(str(x) for x in release))
+
     def __iadd__(self, num: int) -> "_Version":
         """
-        Add a number to the release.
+        Add a number to the final release segment.
         """
         release = self.release[:-1] + (self.release[-1] + num, )
-        self._version = self._version._replace(release=release)  # type: ignore
-        return self
+        return self._with_release(release)
 
     def __isub__(self, num: int) -> "_Version":
         """
-        Subtract a number from the release.
+        Subtract a number from the release, borrowing across segments.
 
         For example:
 
@@ -80,18 +88,22 @@ class _Version(packaging.version.Version):  # type: ignore
         This functionality is meant to decrease the version number for
         pre-releases (since OSS Index breaks on them), so imperfections
         are probably alright.
+
+        The all-zero release (e.g. `0.0.0`) has no predecessor, so it
+        clamps at zero rather than borrowing off the end.
         """
+        release = list(self.release)
         for _ in range(num):
-            release = list(reversed(self.release))
-            for i, x in enumerate(release):
-                x -= 1
-                release[i] = x if x >= 0 else 9
-                if x >= 0:
-                    self._version = self._version._replace(
-                        release=tuple(reversed(release))
-                    )
+            for i in range(len(release) - 1, -1, -1):
+                if release[i] > 0:
+                    release[i] -= 1
+                    for j in range(i + 1, len(release)):
+                        release[j] = 9
                     break
-        return self
+            else:
+                release = [0] * len(release)
+                break
+        return self._with_release(tuple(release))
 
 
 def _archive_url_version(url: str) -> Optional[_Version]:
@@ -140,9 +152,14 @@ def _vcs_ref_version(url: str) -> Optional[_Version]:
     ref = path.rsplit("@", 1)[-1]
     if ref.startswith("refs/heads/"):
         return None
-    if ref.startswith("refs/tags/"):
+    is_tag = ref.startswith("refs/tags/")
+    if is_tag:
         ref = ref[len("refs/tags/"):]
-    if _COMMIT_HASH_RE.fullmatch(ref):
+    # A bare ref is ambiguous (tag vs commit), so skip anything that
+    # looks like a commit hash.  A `refs/tags/` ref is known to be a
+    # tag, so the hash heuristic must not discard it (e.g. a date-based
+    # tag like `20240101`).
+    if not is_tag and _COMMIT_HASH_RE.fullmatch(ref):
         return None
 
     try:

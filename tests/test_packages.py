@@ -6,10 +6,14 @@
 
 import io
 import json
-from unittest import TestCase
+import types
+from unittest import TestCase, skipUnless
 from unittest.mock import patch
 
-import pkg_resources
+try:
+    import pkg_resources
+except ImportError:  # Python 3.12+ venvs may not ship setuptools
+    pkg_resources = None
 
 from ossaudit import packages
 
@@ -20,6 +24,9 @@ class TestVersion(TestCase):
             ("0", 1, "1", "0"),
             ("0", 123, "123", "0"),
             ("0.0.0", 1, "0.0.1", "0.0.0"),
+            # all-zero releases have no predecessor: clamp at zero
+            ("0.0.0", 10, "0.0.10", "0.0.0"),
+            ("0.0", 3, "0.3", "0.0"),
             ("0.0.9", 9, "0.0.18", "0.0.0"),
             ("1.1.1", 1, "1.1.2", "1.1.0"),
             ("1.1.1", 5, "1.1.6", "1.0.6"),
@@ -27,6 +34,8 @@ class TestVersion(TestCase):
             ("100", 1, "101", "99"),
             ("9.9.10", 1, "9.9.11", "9.9.9"),
             ("9.9.9", 1, "9.9.10", "9.9.8"),
+            # epoch is preserved through the arithmetic
+            ("1!2.3", 1, "1!2.4", "1!2.2"),
         ]
 
         for before, num, add, sub in versions:
@@ -167,7 +176,52 @@ class TestGetFromFiles(TestCase):
         self.assertEqual(sorted(got), sorted(want))
 
 
+class TestDirectReference(TestCase):
+    def _version(self, line: str):
+        v = packages._direct_reference_version(line)
+        return v.base_version if v is not None else None
+
+    def test_vcs_tag(self) -> None:
+        base = "pkg @ git+https://example.com/pkg.git@"
+        # A refs/tags/ ref is unambiguously a tag; recover it even when
+        # it looks like a commit hash (e.g. an all-digit date tag).
+        self.assertEqual(self._version(base + "refs/tags/v1.2.3"), "1.2.3")
+        self.assertEqual(self._version(base + "refs/tags/20240101"), "20240101")
+        self.assertEqual(self._version(base + "refs/tags/1234567"), "1234567")
+
+    def test_vcs_branch_skipped(self) -> None:
+        base = "pkg @ git+https://example.com/pkg.git@"
+        self.assertIsNone(self._version(base + "refs/heads/main"))
+        self.assertIsNone(self._version(base + "refs/heads/20240101"))
+
+    def test_vcs_bare_ref(self) -> None:
+        base = "pkg @ git+https://example.com/pkg.git@"
+        # A bare ref is ambiguous: a hash-looking ref is skipped, a
+        # version-looking ref is recovered.
+        self.assertIsNone(self._version(base + "deadbeef1234"))
+        self.assertIsNone(self._version(base + "1234567"))
+        self.assertEqual(self._version(base + "v1.2.3"), "1.2.3")
+
+    def test_archive(self) -> None:
+        self.assertEqual(
+            self._version("pkg @ file:///tmp/pkg-2.3.4-py3-none-any.whl"),
+            "2.3.4",
+        )
+        self.assertEqual(
+            self._version("pkg @ https://example.com/pkg-2.3.4.tar.gz?x=1"),
+            "2.3.4",
+        )
+
+    def test_from_files(self) -> None:
+        line = "pkg @ git+https://example.com/pkg.git@refs/tags/20240101"
+        f = io.StringIO(line)
+        f.name = "requirements.txt"
+        got = [p.coordinate for p in packages.get_from_files([f])]
+        self.assertEqual(got, ["pkg:pypi/pkg@20240101"])
+
+
 class TestGetInstalled(TestCase):
+    @skipUnless(pkg_resources is not None, "pkg_resources unavailable")
     def test_installed(self) -> None:
         pkgs = [
             ("pylint", "0rc2", "pylint@0"),
@@ -185,6 +239,21 @@ class TestGetInstalled(TestCase):
             got = [p.coordinate for p in packages.get_installed()]
             want = ["pkg:pypi/{}".format(p) for *_, p in pkgs]
             self.assertEqual(sorted(got), sorted(want))
+
+    def test_installed_importlib_fallback(self) -> None:
+        # The importlib.metadata branch, used when pkg_resources has no
+        # working_set (e.g. Python 3.12+ without setuptools installed).
+        dists = [
+            types.SimpleNamespace(metadata={"Name": n, "Version": v})
+            for n, v in [("requests", "2.0"), ("click", "8.0")]
+        ]
+        fake = types.SimpleNamespace(distributions=lambda: dists)
+        with patch("ossaudit.packages.pkg_resources", fake):
+            got = [p.coordinate for p in packages.get_installed()]
+        self.assertEqual(
+            sorted(got),
+            sorted(["pkg:pypi/requests@2.0", "pkg:pypi/click@8.0"]),
+        )
 
 
 class TestPackage(TestCase):
