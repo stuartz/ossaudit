@@ -1,5 +1,9 @@
 
 # ossaudit-ng (Next Generation)
+
+[![CI](https://github.com/stuartz/ossaudit/actions/workflows/ci.yml/badge.svg)](https://github.com/stuartz/ossaudit/actions/workflows/ci.yml)
+![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
+
 A fork of https://github.com/illikainen/ossaudit.git which appears to be no longer maintained.
 
 This fork includes protions of PRs by sseide on the original ossaudit.git
