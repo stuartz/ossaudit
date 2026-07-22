@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Pinned runtime dependencies that the CI self-audit checks.
+  - package-ecosystem: "pip"
+    directory: "/requirements"
+    schedule:
+      interval: "weekly"
+
+  # Action versions referenced by the workflows in .github/workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
