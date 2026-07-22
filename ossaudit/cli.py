@@ -43,7 +43,10 @@ from . import audit, cache, option, packages
     default=["name", "version", "title"],
     multiple=True,
     show_default=True,
-    help="Column to show (can be specified multiple times).",
+    help=(
+        "Column to show; repeatable or comma-separated. Available: "
+        "name, version, id, cve, cvss_score, title, description."
+    ),
 )
 @option.add(
     "--ignore-id",
@@ -102,30 +105,6 @@ def cli(
         http_proxy: str,
         https_proxy: str
 ) -> None:
-    # get options from config file if available
-    ctx = click.get_current_context()
-    if ctx.obj.get("config"):
-        config = ctx.obj.get("config")
-        if config.has_section("ossaudit"):
-            if config.has_option("ossaudit", "token"):
-                token = config.get("ossaudit", "token")
-            if config.has_option("ossaudit", "ignore_ids"):
-                ignore_ids = config.get('ossaudit', 'ignore_ids').split(",")
-            if config.has_option("ossaudit", "columns"):
-                columns = config.get('ossaudit', 'columns').split(",")
-            if config.has_option("ossaudit", "ignore_cache"):
-                ignore_cache = config.getboolean('ossaudit', 'ignore_cache')
-            if config.has_option("ossaudit", "reset_cache"):
-                reset_cache = config.getboolean('ossaudit', 'reset_cache')
-            if config.has_option("ossaudit", "json"):
-                json = config.getboolean('ossaudit', 'json')
-            if config.has_option("ossaudit", "json_full"):
-                json_full = config.getboolean('ossaudit', 'json_full')
-            if config.has_option("ossaudit", "http_proxy"):
-                http_proxy = config.get('ossaudit', 'http_proxy')
-            if config.has_option("ossaudit", "https_proxy"):
-                https_proxy = config.get('ossaudit', 'https_proxy')
-
     columns = tuple(c.strip() for col in columns for c in col.split(",") if c.strip())
 
     if reset_cache:
@@ -146,9 +125,10 @@ def cli(
 
         # only write full coordinate report to stdout and exit afterwards
         if json_full:
-            print(JSON.dumps(audit.create_report(all_coordinates), indent=4))#
-            plen = len(list(c for p, c in all_coordinates if "vulnerabilities" in c and len(c["vulnerabilities"]) > 0))
-            sys.exit(plen)
+            print(JSON.dumps(audit.create_report(all_coordinates), indent=4))
+            vulnerable = any(c.get("vulnerabilities") for p, c in all_coordinates)
+            # Exit 0/1 like the other paths; a raw count wraps mod 256.
+            sys.exit(1 if vulnerable else 0)
 
         # flatten list with package coordinates and their vulnerabilities into a vulnerability list only
         vulns = [
@@ -156,13 +136,13 @@ def cli(
             if v.id not in ignore_ids and v.cve not in ignore_ids
         ]
     except audit.AuditError as e:
-        raise click.ClickException(str(e))
+        raise option.OperationalError(str(e))
 
-    if vulns:
-        vlen, plen = len(vulns), len(pkgs)
-        if json:
-            print(JSON.dumps(audit.create_vuln_list(vulns, columns),indent=4))
-        else:
+    vlen, plen = len(vulns), len(pkgs)
+    if json:
+        print(JSON.dumps(audit.create_vuln_list(vulns, columns), indent=4))
+    else:
+        if vulns:
             size = shutil.get_terminal_size()
             table = texttable.Texttable(max_width=size.columns)
             table.header(columns)
@@ -171,6 +151,7 @@ def cli(
                              for c in columns]
                             for v in vulns], False)
             click.echo(table.draw())
-            click.echo("Found {} vulnerabilities in {} packages".format(vlen, plen))
+        # Always print the summary so a clean audit isn't silent.
+        click.echo("Found {} vulnerabilities in {} packages".format(vlen, plen))
 
-        sys.exit(vlen != 0)
+    sys.exit(vlen != 0)

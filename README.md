@@ -27,11 +27,16 @@ files.  The following formats are supported with [dparse][2]:
 
 ## Installation
 
-### Normal
-
+### From PyPI
 
 ```sh
-./setup.py develop
+pip install ossaudit-ng
+```
+
+### From source (development)
+
+```sh
+pip install -e .[dev]
 ```
 
 
@@ -47,8 +52,9 @@ Options:
   -f, --file FILENAME  Audit packages in file (can be specified multiple
                        times).
   --token TEXT         Token for authentication.
-  --column TEXT        Column to show (can be specified multiple times or passed a comma separated list).
-                       [default: name, version, title]  additional optons -- id, cve, cvss_score, description
+  --column TEXT        Column to show; repeatable or comma-separated.
+                       Available: name, version, id, cve, cvss_score, title,
+                       description.  [default: name, version, title]
   --ignore-id TEXT     Ignore a vulnerability by Sonatype ID or CVE (can be
                        specified multiple times).
   --ignore-cache       Temporarily ignore existing cache.
@@ -60,6 +66,17 @@ Options:
   --https-proxy TEXT   HTTPS proxy URL.
   --help               Show this message and exit.
 ```
+
+## Exit codes
+
+The command exits with a distinct status so it can be used as a CI gate
+that tells "found something" apart from "could not run":
+
+| Code | Meaning                                                        |
+|------|----------------------------------------------------------------|
+| `0`  | Ran successfully; no vulnerabilities found.                    |
+| `1`  | Ran successfully; one or more vulnerabilities found.           |
+| `2`  | Could not run (bad configuration, invalid credentials, rate limiting, or a usage error). |
 
 ## As import
 ```python

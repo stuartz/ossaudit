@@ -27,7 +27,7 @@ setup(
     project_urls={
         "Changelog": "https://github.com/stuartz/ossaudit/blob/master/HISTORY.md",
     },
-    python_requires=">=3.5",
+    python_requires=">=3.8",
     entry_points={
         "console_scripts": ["ossaudit = ossaudit.__main__:main"],
     },
@@ -41,17 +41,19 @@ setup(
         "requests",
         "texttable",
     ],
-    tests_requires=[
-        "coverage",
-        "isort",
-        "mccabe",
-        "mypy",
-        "pycodestyle",
-        "pyflakes",
-        "pylint",
-        "pylint-quotes",
-        "yapf",
-    ],
+    extras_require={
+        "dev": [
+            "coverage",
+            "isort",
+            "mccabe",
+            "mypy",
+            "pycodestyle",
+            "pyflakes",
+            "pylint",
+            "pylint-quotes",
+            "yapf",
+        ],
+    },
     classifiers=[
         "Environment :: Console",
         "Intended Audience :: Developers",
@@ -67,6 +69,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Security",
         "Topic :: Software Development",
         "Topic :: Software Development :: Libraries :: Python Modules",

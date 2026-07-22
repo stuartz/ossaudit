@@ -52,7 +52,7 @@ class TestGet(CacheTestCase):
 
     def test_have_old_cached_entry(self) -> None:
         path = Path(self.tmp.name).joinpath("vulns01.json")
-        self._write_cache(path, time.time() + const.CACHE_TIME + 1)
+        self._write_cache(path, time.time() - const.CACHE_TIME - 1)
 
         with patch("ossaudit.const.CACHE", path):
             entry = cache.get("pkg:pypi/requests@0.10.0")
@@ -86,7 +86,7 @@ class TestSave(CacheTestCase):
     def test_remove_old(self) -> None:
         path = Path(self.tmp.name).joinpath("vulns01.json")
 
-        timestamp = time.time() + const.CACHE_TIME + 1000
+        timestamp = time.time() - const.CACHE_TIME - 1000
         self._write_cache(path, timestamp)
 
         with path.open() as f:
@@ -107,7 +107,7 @@ class TestSave(CacheTestCase):
     def test_remove_partially_old(self) -> None:
         path = Path(self.tmp.name).joinpath("vulns01.json")
 
-        timestamp = time.time() + const.CACHE_TIME + 1000
+        timestamp = time.time() - const.CACHE_TIME - 1000
         self._write_cache(path, timestamp, 2)
 
         with path.open() as f:
@@ -162,7 +162,7 @@ class TestIsValid(TestCase):
     def test_old(self) -> None:
         self.assertFalse(
             cache._is_valid({
-                "time": time.time() + const.CACHE_TIME + 1
+                "time": time.time() - const.CACHE_TIME - 1
             })
         )
 
