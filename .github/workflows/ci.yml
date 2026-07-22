@@ -29,3 +29,22 @@ jobs:
 
       - name: Run tests
         run: python -m unittest -q
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install
+        run: pip install -e . coverage
+
+      - name: Check coverage
+        # coverage report exits non-zero below fail_under (100%) in .coveragerc
+        run: |
+          coverage run -m unittest -q
+          coverage report -m
