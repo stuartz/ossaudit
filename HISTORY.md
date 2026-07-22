@@ -1,5 +1,46 @@
 # History
 
+## 2.0.0
+
+### Breaking / behavior changes
+
+- Exit codes are now distinct so a CI gate can tell "found something"
+  from "could not run": `0` no vulnerabilities, `1` vulnerabilities
+  found, `2` the audit could not run (bad configuration, invalid
+  credentials, rate limiting, or a usage error). Previously operational
+  errors surfaced as `1` (indistinguishable from findings), and
+  `--json-full` exited with the vulnerable-package *count*, which wrapped
+  to `0` at 256 packages.
+- Command-line options now take precedence over the configuration file.
+  Previously a config value silently overrode an explicit CLI flag.
+- The configuration section and environment-variable prefix are resolved
+  from the stable app name (`[ossaudit]` / `OSSAUDIT_*`), and config keys
+  may be written with either hyphens or underscores. This restores the
+  documented behavior that the 1.0.0 rebrand broke.
+- `python_requires` is now `>=3.8` (was `>=3.5`).
+
+### Fixes
+
+- Cached vulnerability data now expires after `CACHE_TIME`; the freshness
+  check was inverted, so cache entries never expired.
+- A clean audit prints a summary again instead of nothing, and `--json`
+  always emits a valid (possibly empty) array.
+- `--json-full` no longer crashes when combined with `--ignore-cache`.
+- Versions are recovered from `refs/tags/` direct references even when
+  the tag looks like a commit hash (e.g. a date tag like `20240101`).
+- `--column` names are matched case-insensitively in JSON output,
+  matching the table output.
+- `_Version` no longer relies on a private `packaging` API that newer
+  `packaging` releases have deprecated and will remove.
+
+### Project
+
+- Dev tools are declared via `extras_require["dev"]`
+  (`pip install -e '.[dev]'`).
+- Added a GitHub Actions CI matrix (Python 3.8–3.14) with a 100%
+  coverage gate, a security policy, and Dependabot configuration;
+  classifiers updated through 3.14.
+
 ## 1.0.3
 
 - Fix packages referenced via a PEP 508 direct reference (e.g.
