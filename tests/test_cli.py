@@ -60,6 +60,25 @@ class TestCli(PatchedTestCase):
                     self.assertEqual(result.exit_code, 0)
                     components.assert_called_with(pkgs, None, None, False)
 
+    def test_proxies(self) -> None:
+        with patch("ossaudit.packages.get_installed") as get_installed:
+            get_installed.return_value = [packages.Package("a", "1.1")]
+            with patch("ossaudit.audit.components") as components:
+                components.return_value = []
+                runner = CliRunner()
+                result = runner.invoke(cli.cli, [
+                    "--installed",
+                    "--http-proxy", "http://proxy:8080",
+                    "--https-proxy", "http://proxy:8443",
+                ])
+                self.assertEqual(result.exit_code, 0)
+                components.assert_called_with(
+                    ANY,
+                    None,
+                    {"http": "http://proxy:8080", "https": "http://proxy:8443"},
+                    False,
+                )
+
     def test_mixed(self) -> None:
         runner = CliRunner()
 

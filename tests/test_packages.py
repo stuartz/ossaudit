@@ -7,13 +7,8 @@
 import io
 import json
 import types
-from unittest import TestCase, skipUnless
+from unittest import TestCase
 from unittest.mock import patch
-
-try:
-    import pkg_resources
-except ImportError:  # Python 3.12+ venvs may not ship setuptools
-    pkg_resources = None
 
 from ossaudit import packages
 
@@ -212,6 +207,23 @@ class TestDirectReference(TestCase):
             "2.3.4",
         )
 
+    def test_unrecoverable(self) -> None:
+        # Malformed archive filenames yield no version.
+        self.assertIsNone(self._version("pkg @ file:///tmp/notawheel.whl"))
+        self.assertIsNone(self._version("pkg @ https://e.com/nope.tar.gz"))
+        # A URL that is neither a known archive nor a VCS scheme.
+        self.assertIsNone(self._version("pkg @ https://example.com/foo"))
+        # A VCS reference with no ref after `@`.
+        self.assertIsNone(self._version("pkg @ git+https://example.com/p.git"))
+        # A VCS ref that is not a valid version (and not a commit hash).
+        self.assertIsNone(
+            self._version("pkg @ git+https://example.com/p.git@main")
+        )
+        # A line that is not a valid PEP 508 requirement at all.
+        self.assertIsNone(
+            packages._direct_reference_version("not a requirement @@@")
+        )
+
     def test_from_files(self) -> None:
         line = "pkg @ git+https://example.com/pkg.git@refs/tags/20240101"
         f = io.StringIO(line)
@@ -221,8 +233,10 @@ class TestDirectReference(TestCase):
 
 
 class TestGetInstalled(TestCase):
-    @skipUnless(pkg_resources is not None, "pkg_resources unavailable")
     def test_installed(self) -> None:
+        # The pkg_resources.working_set branch. Patch the module reference
+        # with a fake so the test does not depend on setuptools being
+        # installed (it isn't, on Python 3.12+ venvs).
         pkgs = [
             ("pylint", "0rc2", "pylint@0"),
             ("pytest", "1.2.3", "pytest@1.2.3"),
@@ -231,14 +245,17 @@ class TestGetInstalled(TestCase):
             ("tox", "1.9.0rc7", "tox@1.8.9"),
         ]
 
-        with patch("pkg_resources.working_set") as mock:
-            mock.__iter__.return_value = [
-                pkg_resources.Distribution(project_name=n, version=v)
-                for n, v, _ in pkgs
-            ]
+        dists = [
+            types.SimpleNamespace(
+                as_requirement=lambda n=n, v=v: "{}=={}".format(n, v)
+            )
+            for n, v, _ in pkgs
+        ]
+        fake = types.SimpleNamespace(working_set=dists)
+        with patch("ossaudit.packages.pkg_resources", fake):
             got = [p.coordinate for p in packages.get_installed()]
-            want = ["pkg:pypi/{}".format(p) for *_, p in pkgs]
-            self.assertEqual(sorted(got), sorted(want))
+        want = ["pkg:pypi/{}".format(p) for *_, p in pkgs]
+        self.assertEqual(sorted(got), sorted(want))
 
     def test_installed_importlib_fallback(self) -> None:
         # The importlib.metadata branch, used when pkg_resources has no
