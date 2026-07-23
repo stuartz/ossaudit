@@ -83,6 +83,9 @@ that tells "found something" apart from "could not run":
 | `2`  | Could not run (bad configuration, invalid credentials, rate limiting, or a usage error). |
 
 ## As import
+Following arguments can be passed:
+
+installed=True, file="path/requirments.txt", token="pat", ignore_id(list), ignore_cache=True, proxies={"https": "proxyurl", "http": "proxyurl"}
 ```python
 from ossaudit import scan
 list_of_vulnerabilites = scan(installed=True)  # Pass options as args
