@@ -83,9 +83,16 @@ that tells "found something" apart from "could not run":
 | `2`  | Could not run (bad configuration, invalid credentials, rate limiting, or a usage error). |
 
 ## As import
-Following arguments can be passed:
 
-installed=True, file="path/requirments.txt", token="pat", ignore_id(list), ignore_cache=True, proxies={"https": "proxyurl", "http": "proxyurl"}
+`scan()` accepts these optional arguments:
+
+- `installed=True` — audit installed packages
+- `files=["path/requirements.txt"]` — requirements/lock files to audit (a list)
+- `token="..."` — OSS Index API token
+- `ignore_ids=["CVE-..."]` — vulnerability IDs or CVEs to skip (a list)
+- `ignore_cache=True` — bypass the local cache
+- `proxies={"https": "http://proxy:8080", "http": "http://proxy:8080"}`
+
 ```python
 from ossaudit import scan
 list_of_vulnerabilites = scan(installed=True)  # Pass options as args
